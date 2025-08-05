@@ -5,7 +5,6 @@ namespace App\Entity;
 use App\Repository\AuthorRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AuthorRepository::class)]
@@ -19,19 +18,16 @@ class Author
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
-    #[ORM\Column(type: Types::DATE_IMMUTABLE)]
+    #[ORM\Column]
     private ?\DateTimeImmutable $dateOfBirth = null;
 
-    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $dateOfDeath = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $nationality = null;
 
-    /**
-     * @var Collection<int, Book>
-     */
-    #[ORM\ManyToMany(targetEntity: Book::class, mappedBy: 'authors')]
+    #[ORM\ManyToMany(targetEntity: Book::class, inversedBy: 'authors')]
     private Collection $books;
 
     public function __construct()
@@ -104,7 +100,6 @@ class Author
     {
         if (!$this->books->contains($book)) {
             $this->books->add($book);
-            $book->addAuthor($this);
         }
 
         return $this;
@@ -112,9 +107,7 @@ class Author
 
     public function removeBook(Book $book): static
     {
-        if ($this->books->removeElement($book)) {
-            $book->removeAuthor($this);
-        }
+        $this->books->removeElement($book);
 
         return $this;
     }
