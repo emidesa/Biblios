@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: BookRepository::class)]
 class Book
@@ -17,49 +18,51 @@ class Book
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Assert\NotBlank()]
     #[ORM\Column(length: 255)]
     private ?string $title = null;
 
+    #[Assert\Isbn(type: 'isbn13')]
+    #[Assert\NotBlank()]
     #[ORM\Column(length: 255)]
     private ?string $isbn = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\NotBlank()]
+    #[Assert\Url()]
+    #[ORM\Column(length: 255)]
     private ?string $cover = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column]
     private ?\DateTimeImmutable $editedAt = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Assert\Length(min: 20)]
+    #[ORM\Column(type: Types::TEXT)]
     private ?string $plot = null;
 
-    #[ORM\Column(nullable: true)]
+    #[Assert\Type(type: 'integer')]
+    #[ORM\Column]
     private ?int $pageNumber = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(length: 255)]
     private ?BookStatus $status = null;
 
     #[ORM\ManyToOne(inversedBy: 'books')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Editor $editor = null;
 
-    /**
-     * @var Collection<int, Author>
-     */
-    #[ORM\ManyToMany(targetEntity: Author::class, inversedBy: 'books')]
-    private Collection $authors;
+    #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'book', orphanRemoval: true)]
+    private Collection $comments;
 
-    /**
-     * @var Collection<int, Comment>
-     */
-    #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'book')]
-    private Collection $Book;
+    #[ORM\ManyToMany(targetEntity: Author::class, inversedBy: 'books')]
+    #[ORM\JoinTable(name: 'book_author')]
+    private Collection $authors;
+    
 
     public function __construct()
     {
+        $this->comments = new ArrayCollection();
         $this->authors = new ArrayCollection();
-        $this->Book = new ArrayCollection();
     }
-
 
     public function getId(): ?int
     {
@@ -95,7 +98,7 @@ class Book
         return $this->cover;
     }
 
-    public function setCover(?string $cover): static
+    public function setCover(string $cover): static
     {
         $this->cover = $cover;
 
@@ -107,7 +110,7 @@ class Book
         return $this->editedAt;
     }
 
-    public function setEditedAt(?\DateTimeImmutable $editedAt): static
+    public function setEditedAt(\DateTimeImmutable $editedAt): static
     {
         $this->editedAt = $editedAt;
 
@@ -119,7 +122,7 @@ class Book
         return $this->plot;
     }
 
-    public function setPlot(?string $plot): static
+    public function setPlot(string $plot): static
     {
         $this->plot = $plot;
 
@@ -131,7 +134,7 @@ class Book
         return $this->pageNumber;
     }
 
-    public function setPageNumber(?int $pageNumber): static
+    public function setPageNumber(int $pageNumber): static
     {
         $this->pageNumber = $pageNumber;
 
@@ -163,6 +166,36 @@ class Book
     }
 
     /**
+     * @return Collection<int, Comment>
+     */
+    public function getComments(): Collection
+    {
+        return $this->comments;
+    }
+
+    public function addComment(Comment $comment): static
+    {
+        if (!$this->comments->contains($comment)) {
+            $this->comments->add($comment);
+            $comment->setBook($this);
+        }
+
+        return $this;
+    }
+
+    public function removeComment(Comment $comment): static
+    {
+        if ($this->comments->removeElement($comment)) {
+            // set the owning side to null (unless already changed)
+            if ($comment->getBook() === $this) {
+                $comment->setBook(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * @return Collection<int, Author>
      */
     public function getAuthors(): Collection
@@ -174,6 +207,7 @@ class Book
     {
         if (!$this->authors->contains($author)) {
             $this->authors->add($author);
+            $author->addBook($this);
         }
 
         return $this;
@@ -181,39 +215,10 @@ class Book
 
     public function removeAuthor(Author $author): static
     {
-        $this->authors->removeElement($author);
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Comment>
-     */
-    public function getBook(): Collection
-    {
-        return $this->Book;
-    }
-
-    public function addBook(Comment $book): static
-    {
-        if (!$this->Book->contains($book)) {
-            $this->Book->add($book);
-            $book->setBook($this);
+        if ($this->authors->removeElement($author)) {
+            $author->removeBook($this);
         }
 
         return $this;
     }
-
-    public function removeBook(Comment $book): static
-    {
-        if ($this->Book->removeElement($book)) {
-            // set the owning side to null (unless already changed)
-            if ($book->getBook() === $this) {
-                $book->setBook(null);
-            }
-        }
-
-        return $this;
-    }
-
 }
