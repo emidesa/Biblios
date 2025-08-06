@@ -35,7 +35,7 @@ class Author
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $nationality = null;
 
-    #[ORM\ManyToMany(targetEntity: Book::class, mappedBy: 'authors')]
+    #[ORM\ManyToMany(targetEntity: Book::class, mappedBy: 'authors', fetch: 'EXTRA_LAZY')]
     private Collection $books;
 
     public function __construct()
